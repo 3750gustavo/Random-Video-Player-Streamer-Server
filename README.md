@@ -68,16 +68,19 @@ Imagine a Web APP that plays random videos at random starting points from your p
 ## Technology Stack
 
 * **Backend:**
-  - Node.js
-  - Express.js
-  - FFmpeg (via ffmpeg-static)
-  - Socket.IO
-  - CORS
+  - `Node.js`
+  - `Express.js`
+  - `FFmpeg` (via ffmpeg-static)
+  - `Socket.IO`
+  - `CORS`
 * **Frontend:**
-  - HTML5
-  - CSS
-  - JavaScript
-  - Socket.IO and Bootstrap CDNs with integrity checks for extra safety
+  - `HTML5`
+  - `CSS` (Bootstrap 5)
+  - `JavaScript`
+  - `Socket.IO` and `Bootstrap 5` CDNs with integrity checks for extra safety
+* **Python Tool:**
+  - `Tkinter`
+  - `json` and `os` for handling the path config file data
 
 ## Contributing
 
