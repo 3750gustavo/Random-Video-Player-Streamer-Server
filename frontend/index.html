@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Streamer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <!-- Add Socket.IO -->
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="container mt-5">
+    <h1>Video Streamer</h1>
+    <button id="startStopBtn" class="btn btn-primary">Start</button>
+    <video id="videoPlayer" controls width="640" height="360"></video>
+  </div>
+
+  <script>
+    const startStopBtn = document.getElementById('startStopBtn');
+    const videoPlayer = document.getElementById('videoPlayer');
+
+    // Define the IP address as a constant
+    const ipAddress = 'http://192.168.0.120:3000';
+
+    // Initialize Socket.IO
+    const socket = io(ipAddress);
+
+    // Function to send the request
+    async function sendRequest(url) {
+      try {
+        const response = await fetch(`${ipAddress}${url}`);
+        return await response.json();
+      } catch (error) {
+        console.error('Error in request:', error);
+      }
+    }
+
+    // Handle button click
+    async function handleStartStop() {
+      const response = await sendRequest('/startstop');
+      startStopBtn.textContent = response.status === 'started' ? 'Pause' : 'Start';
+    }
+
+    // Reset on page load
+    window.onload = async () => {
+      await sendRequest('/reset');
+      startStopBtn.textContent = 'Start';
+    };
+
+    startStopBtn.addEventListener('click', handleStartStop);
+
+    // Receive video events via Socket.IO
+    socket.on('video-stream', (data) => {
+      if (data.url && data.timestamp !== undefined) {
+        // Ensure the URL is properly encoded
+        const videoUrl = `${ipAddress}/video?path=${encodeURIComponent(data.url)}#t=${data.timestamp}`;
+        console.log('Loading video:', videoUrl); // For debug
+        videoPlayer.src = videoUrl;
+        videoPlayer.load();
+
+        // Play after the video loads
+        videoPlayer.addEventListener('loadeddata', () => {
+          videoPlayer.play().catch(err => {
+            console.error('Error playing video:', err);
+          });
+        }, { once: true }); // Use { once: true } to avoid multiple listeners
+      }
+    });
+
+    // Update button state when the server sends status
+    socket.on('status', (data) => {
+      startStopBtn.textContent = data.isPlaying ? 'Pause' : 'Start';
+    });
+  </script>
+</body>
+</html>

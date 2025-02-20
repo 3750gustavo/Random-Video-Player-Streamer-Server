@@ -1,0 +1,9 @@
+# Ignore all temporary files
+.dist
+
+# Ignore specific files or directories
+Backend/node_modules/
+Backend/config/
+
+# Ignore development tools
+.vscode/
