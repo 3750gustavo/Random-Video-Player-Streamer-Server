@@ -15,6 +15,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 // Configurações
 const PORT = 3000;
 const CONFIG_PATH = path.join(__dirname, 'config', 'video_paths.json');
+const TIME_PER_CLIP = 10;
 
 // Inicialização do Express
 const app = express();
@@ -112,10 +113,10 @@ async function selectRandomVideo() {
 
     try {
         const duration = await getVideoDuration(selectedVideo);
-        if (duration <= 11) {
+        if (duration <= TIME_PER_CLIP+1) {
             return { path: selectedVideo, timestamp: 0 };
         }
-        const maxTimestamp = duration - 11;
+        const maxTimestamp = duration - TIME_PER_CLIP+1;
         const randomTimestamp = Math.floor(Math.random() * maxTimestamp);
         return { path: selectedVideo, timestamp: randomTimestamp };
     } catch (err) {
@@ -137,8 +138,8 @@ async function playbackLoopFunction() {
         console.log(`Enviado vídeo: ${videoInfo.path} com timestamp: ${videoInfo.timestamp}`);
     }
 
-    // Configurar o próximo envio após 10 segundos
-    playbackLoop = setTimeout(playbackLoopFunction, 10000);
+    // Configurar o próximo envio após TIME_PER_CLIP segundos
+    playbackLoop = setTimeout(playbackLoopFunction, TIME_PER_CLIP * 1000);
 }
 
 // Rotas HTTP
@@ -204,8 +205,8 @@ app.get('/video', (req, res) => {
 
     if (range) {
         const parts = range.replace(/bytes=/, "").split("-");
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize-1;
+        const start = parseInt(parts[0], TIME_PER_CLIP);
+        const end = parts[1] ? parseInt(parts[1], TIME_PER_CLIP) : fileSize-1;
         const chunksize = (end-start)+1;
         const file = fs.createReadStream(normalizedPath, {start, end});
         const head = {
