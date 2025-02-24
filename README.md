@@ -16,7 +16,7 @@
 
 ## Overview
 
-Imagine a Web APP that plays random videos at random starting points from your pc that you can acess from another machine or even your phone. This is exactly what this project is about.
+Imagine a Web APP that plays random videos at random starting points from your pc that you can access from another machine or even your phone. This is exactly what this project is about, it's all about breaking the client-server paradigm.
 
 ## Features
 
