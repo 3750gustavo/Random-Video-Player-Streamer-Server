@@ -35,6 +35,7 @@ let videoList = [];
 // Estado de playback
 let isPlaying = false;
 let playbackLoop = null;
+let GoDMode = true;
 
 // Função para carregar caminhos do arquivo de configuração
 function loadVideoPaths() {
@@ -137,9 +138,10 @@ async function playbackLoopFunction() {
         });
         console.log(`Enviado vídeo: ${videoInfo.path} com timestamp: ${videoInfo.timestamp}`);
     }
-
-    // Configurar o próximo envio após TIME_PER_CLIP segundos
-    playbackLoop = setTimeout(playbackLoopFunction, TIME_PER_CLIP * 1000);
+    // Configurar o próximo envio após TIME_PER_CLIP segundos se GoDMode estiver ativado
+    if (GoDMode) {
+        playbackLoop = setTimeout(playbackLoopFunction, TIME_PER_CLIP * 1000);
+    }
 }
 
 // Rotas HTTP
@@ -150,6 +152,7 @@ app.get('/reset', (req, res) => {
     if (playbackLoop) {
         clearTimeout(playbackLoop);
         playbackLoop = null;
+        GoDMode = true;
     }
     res.send({ status: 'resetado' });
     console.log('Playback resetado.');
@@ -169,6 +172,25 @@ app.get('/startstop', async (req, res) => {
         }
         res.send({ status: 'stopped' });
         console.log('Playback parado.');
+    }
+});
+
+// Rota para mudar o vídeo imediatamente (usado pelo botão "Next")
+app.get('/changevideo', async (req, res) => {
+    if (!GoDMode) {
+        const videoInfo = await selectRandomVideo();
+        if (videoInfo) {
+            io.emit('video-stream', {
+                url: videoInfo.path,
+                timestamp: videoInfo.timestamp
+            });
+            console.log(`Enviado vídeo: ${videoInfo.path} com timestamp: ${videoInfo.timestamp}`);
+            res.send({ status: 'video changed' });
+        } else {
+            res.status(500).send({ status: 'error', message: 'No videos available' });
+        }
+    } else {
+        res.status(403).send({ status: 'error', message: 'God Mode is enabled' });
     }
 });
 
@@ -224,6 +246,18 @@ app.get('/video', (req, res) => {
         };
         res.writeHead(200, head);
         fs.createReadStream(normalizedPath).pipe(res);
+    }
+});
+
+// Rota para atualizar o estado do GoDMode
+app.get('/setgodmode', (req, res) => {
+    const { enabled } = req.query;
+    if (enabled === 'true' || enabled === 'false') {
+        GoDMode = enabled === 'true';
+        console.log(`God Mode set to: ${GoDMode}`);
+        res.send({ status: 'success', godMode: GoDMode });
+    } else {
+        res.status(400).send({ status: 'error', message: 'Invalid value for enabled' });
     }
 });
 
