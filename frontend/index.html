@@ -11,15 +11,21 @@
 <body>
   <div class="container mt-5">
     <h1>Video Streamer</h1>
+    <label for="ServerGODMode">Server GOD Mode</label>
+    <input type="checkbox" id="ServerGODMode" checked>
     <button id="startStopBtn" class="btn btn-primary">Start</button>
     <video id="videoPlayer" controls width="640" height="360"></video>
+    <button id="nextBtn" class="btn btn-info" style="display: none;">Next</button>
   </div>
 
   <script>
+    // Get the elements, by default server is in god mode and can make and force changes on the fly
+    const ServerGODMode = document.getElementById('ServerGODMode');
     const startStopBtn = document.getElementById('startStopBtn');
+    const nextBtn = document.getElementById('nextBtn');
     const videoPlayer = document.getElementById('videoPlayer');
 
-    // Define the IP address as a constant
+    // Define the IP address as a constant, change this to your server's IP address
     const ipAddress = 'http://192.168.0.120:3000';
 
     // Initialize Socket.IO
@@ -35,16 +41,31 @@
       }
     }
 
-    // Handle button click
+    // Handle start/stop button click
     async function handleStartStop() {
       const response = await sendRequest('/startstop');
       startStopBtn.textContent = response.status === 'started' ? 'Pause' : 'Start';
+      nextBtn.style.display = response.status === 'started' ? 'inline-block' : 'none'; // Show or hide the next button based on the response status
     }
 
+    // Handle god mode checkbox change
+    ServerGODMode.addEventListener('change', async () => {
+      const godModeEnabled = ServerGODMode.checked;
+      const response = await sendRequest(`/setgodmode?enabled=${godModeEnabled}`);
+      console.log('God Mode set to:', response.godMode);
+    });
+
+    // Handle next button click
+    nextBtn.addEventListener('click', async () => {
+      await sendRequest('/changevideo'); // Use the /changevideo route to change the video immediately
+    });
+    
     // Reset on page load
     window.onload = async () => {
       await sendRequest('/reset');
       startStopBtn.textContent = 'Start';
+      ServerGODMode.checked = true; // Set the checkbox to true by default
+      nextBtn.style.display = 'none'; // Hide the next button by default
     };
 
     startStopBtn.addEventListener('click', handleStartStop);
@@ -70,6 +91,7 @@
     // Update button state when the server sends status
     socket.on('status', (data) => {
       startStopBtn.textContent = data.isPlaying ? 'Pause' : 'Start';
+      nextBtn.style.display = data.isPlaying ? 'inline-block' : 'none'; // Show or hide the next button based on the server status
     });
   </script>
 </body>
