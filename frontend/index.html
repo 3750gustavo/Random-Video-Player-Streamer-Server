@@ -7,6 +7,19 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <!-- Add Socket.IO -->
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>
+
+  <style>
+    /* Oculta os controles do vídeo */
+    #videoPlayer {
+      /* Mantém o cursor como default para indicar que o vídeo está ativo */
+      cursor: default;
+    }
+
+    /* Especificamente para ocultar a barra de controle (pode variar ligeiramente dependendo do navegador) */
+    #videoPlayer::-webkit-media-controls {
+      display: none;
+    }
+  </style>
 </head>
 <body>
   <div class="container mt-5">
@@ -14,7 +27,7 @@
     <label for="ServerGODMode">Server GOD Mode</label>
     <input type="checkbox" id="ServerGODMode" checked>
     <button id="startStopBtn" class="btn btn-primary">Start</button>
-    <video id="videoPlayer" controls width="640" height="360"></video>
+    <video id="videoPlayer" width="640" height="360" controls autoplay></video>
     <button id="nextBtn" class="btn btn-info" style="display: none;">Next</button>
   </div>
 
@@ -59,13 +72,21 @@
     nextBtn.addEventListener('click', async () => {
       await sendRequest('/changevideo'); // Use the /changevideo route to change the video immediately
     });
-    
+
     // Reset on page load
     window.onload = async () => {
       await sendRequest('/reset');
       startStopBtn.textContent = 'Start';
       ServerGODMode.checked = true; // Set the checkbox to true by default
       nextBtn.style.display = 'none'; // Hide the next button by default
+
+      // Check if the browser is Safari
+      if (navigator.userAgent.indexOf('Safari') !== -1 && navigator.userAgent.indexOf('Chrome') === -1) {
+        // Add the playsinline attribute for Safari
+        videoPlayer.setAttribute('playsinline', '');
+        // Remove the controls attribute to hide the controls
+        videoPlayer.removeAttribute('controls');
+      }
     };
 
     startStopBtn.addEventListener('click', handleStartStop);
