@@ -9,6 +9,7 @@
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
   - [Usage](#usage)
+- [GoD Mode vs Normal Mode](#god-mode-vs-normal-mode) [NEW]
 - [Technology Stack](#technology-stack)
 - [Contributing](#contributing)
 - [License](#license)
@@ -24,6 +25,7 @@ Imagine a Web APP that plays random videos at random starting points from your p
 - Has an easy-to-use Python tool for adding and removing video directories to the server.
 - Recursively searches for video files in the specified directories.
 - Streams 10-second segments of videos to connected clients.
+- Supports two modes: God Mode and Normal Mode, more details in [GoD Mode vs Normal Mode](#god-mode-vs-normal-mode)
 
 ## How to Use
 
@@ -64,6 +66,13 @@ Imagine a Web APP that plays random videos at random starting points from your p
 
 1. Run the server using `node server.js` while inside the Backend directory or `node Backend/server.js` at the root of the project.
 2. By now the server should be running, and you should be able to access the frontend by going to `http://your-ip-address:3000` in your browser.
+
+## GoD Mode vs Normal Mode
+
+The server has two modes: GoD Mode and Normal Mode.
+
+- **GoD Mode:** In this mode, the server will automatically play a new video every 10 seconds. This mode is enabled by default when the server starts, its called god mode because the server has god powers over the client, it can play any video at any time without the client having anything to say about it.
+- **Normal Mode:** In this mode, the server will only play a new video when the client requests it. The videos are still just as random as in GoD Mode, but the client has more control over when the videos are played.
 
 ## Technology Stack
 
