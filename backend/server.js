@@ -41,15 +41,18 @@ let GoDMode = true;
 function loadVideoPaths() {
     try {
         const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-        return config.paths.map(p => path.normalize(p));
+        return {
+            paths: config.paths.map(p => path.normalize(p)),
+            includeSubfolders: config.include_subfolders
+        };
     } catch (err) {
         console.error('Erro ao carregar caminhos dos vídeos:', err);
-        return [];
+        return { paths: [], includeSubfolders: true };
     }
 }
 
 // Função para ler arquivos recursivamente
-function readVideos(dirs, fileList = []) {
+function readVideos(dirs, includeSubfolders, fileList = []) {
     dirs.forEach(dir => {
         try {
             const normalizedDir = path.normalize(dir);
@@ -57,8 +60,8 @@ function readVideos(dirs, fileList = []) {
             files.forEach(file => {
                 const filepath = path.join(normalizedDir, file);
                 const stat = fs.statSync(filepath);
-                if (stat.isDirectory()) {
-                    readVideos([filepath], fileList);
+                if (stat.isDirectory() && includeSubfolders) {
+                    readVideos([filepath], includeSubfolders, fileList);
                 } else {
                     const ext = path.extname(file).toLowerCase();
                     if (ext === '.mp4' || ext === '.m4a') {
@@ -90,12 +93,12 @@ function getVideoDuration(filePath) {
 // Função de inicialização para ler todos os vídeos
 function initializeVideoList() {
     try {
-        const videoPaths = loadVideoPaths();
-        if (videoPaths.length === 0) {
+        const { paths, includeSubfolders } = loadVideoPaths();
+        if (paths.length === 0) {
             console.warn('Nenhum caminho de vídeo configurado. Use a ferramenta de gerenciamento de caminhos para adicionar diretórios.');
             return;
         }
-        videoList = readVideos(videoPaths);
+        videoList = readVideos(paths, includeSubfolders);
         console.log(`Total de vídeos encontrados: ${videoList.length}`);
     } catch (err) {
         console.error('Erro ao ler os vídeos:', err);
@@ -114,10 +117,10 @@ async function selectRandomVideo() {
 
     try {
         const duration = await getVideoDuration(selectedVideo);
-        if (duration <= TIME_PER_CLIP+1) {
+        if (duration <= TIME_PER_CLIP + 1) {
             return { path: selectedVideo, timestamp: 0 };
         }
-        const maxTimestamp = duration - TIME_PER_CLIP+1;
+        const maxTimestamp = duration - TIME_PER_CLIP + 1;
         const randomTimestamp = Math.floor(Math.random() * maxTimestamp);
         return { path: selectedVideo, timestamp: randomTimestamp };
     } catch (err) {
@@ -197,18 +200,18 @@ app.get('/changevideo', async (req, res) => {
 // Servir os arquivos de vídeo estáticos com CORS
 app.get('/video', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
-    
+
     // Decodificar e normalizar o caminho do vídeo
     const videoPath = decodeURIComponent(req.query.path);
     const normalizedPath = path.normalize(videoPath);
-    
+
     // Validar que o caminho existe em nossas configurações
-    const videoPaths = loadVideoPaths();
-    const isValidPath = videoPaths.some(basePath => {
+    const { paths } = loadVideoPaths();
+    const isValidPath = paths.some(basePath => {
         const normalizedBasePath = path.normalize(basePath);
         return normalizedPath.startsWith(normalizedBasePath);
     });
-    
+
     if (!isValidPath) {
         console.log('Access denied for path:', normalizedPath);
         return res.status(403).send('Access denied');
@@ -228,9 +231,9 @@ app.get('/video', (req, res) => {
     if (range) {
         const parts = range.replace(/bytes=/, "").split("-");
         const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize-1;
-        const chunksize = (end-start)+1;
-        const file = fs.createReadStream(normalizedPath, {start, end});
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunksize = (end - start) + 1;
+        const file = fs.createReadStream(normalizedPath, { start, end });
         const head = {
             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
             'Accept-Ranges': 'bytes',

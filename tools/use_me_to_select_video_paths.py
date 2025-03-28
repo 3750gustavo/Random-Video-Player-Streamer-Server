@@ -33,10 +33,14 @@ class PathManagerApp:
         ttk.Button(self.frame, text="Add Path", command=self.add_path).grid(row=1, column=0, pady=5)
         ttk.Button(self.frame, text="Delete Selected", command=self.delete_paths).grid(row=1, column=1, pady=5)
 
+        # Create checkbox for include_subfolders
+        self.include_subfolders_var = tk.BooleanVar()
+        ttk.Checkbutton(self.frame, text="Include Subfolders", variable=self.include_subfolders_var, command=self.save_paths).grid(row=2, column=0, columnspan=2, pady=5)
+
         # Initialize paths storage
         self.paths = set()
 
-        # Load existing paths
+        # Load existing paths and settings
         self.load_paths()
 
     def load_paths(self):
@@ -57,10 +61,12 @@ class PathManagerApp:
                                 "Invalid Path",
                                 f"Path not found and will be removed: {normalized_path}"
                             )
+                    self.include_subfolders_var.set(data.get('include_subfolders', True))
             self.save_paths()  # Save to remove any invalid paths
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load paths: {str(e)}")
             self.paths = set()
+            self.include_subfolders_var.set(True)
             self.save_paths()
 
     def save_paths(self):
@@ -69,7 +75,10 @@ class PathManagerApp:
             with open(CONFIG_PATH, 'w') as f:
                 # Always save paths using forward slashes for consistency
                 paths_to_save = [p.replace('\\', '/') for p in self.paths]
-                json.dump({'paths': sorted(paths_to_save)}, f, indent=4)
+                json.dump({
+                    'paths': sorted(paths_to_save),
+                    'include_subfolders': self.include_subfolders_var.get()
+                }, f, indent=4)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save paths: {str(e)}")
 
