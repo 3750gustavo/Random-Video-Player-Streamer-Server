@@ -93,10 +93,9 @@
 
     // Receive video events via Socket.IO
     socket.on('video-stream', (data) => {
-      if (data.url && data.timestamp !== undefined) {
-        // Ensure the URL is properly encoded
-        const encodedPath = encodeURIComponent(data.url);
-        const videoUrl = `${ipAddress}/video?path=${encodedPath}&timestamp=${data.timestamp}`;
+      // Check if the data contains an index and timestamp
+      if (data.index !== undefined && data.timestamp !== undefined) {
+        const videoUrl = `${ipAddress}/video?index=${data.index}#t=${data.timestamp}`;
         console.log('Loading video:', videoUrl); // For debug
         videoPlayer.src = videoUrl;
         videoPlayer.load();

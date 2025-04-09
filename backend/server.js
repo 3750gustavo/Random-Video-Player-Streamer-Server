@@ -1,5 +1,3 @@
-// backend/server.js
-
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -98,8 +96,9 @@ function initializeVideoList() {
             console.warn('Nenhum caminho de vídeo configurado. Use a ferramenta de gerenciamento de caminhos para adicionar diretórios.');
             return;
         }
-        videoList = readVideos(paths, includeSubfolders);
-        console.log(`Total de vídeos encontrados: ${videoList.length}`);
+        const fileList = readVideos(paths, includeSubfolders);
+        videoList = fileList.reduce((acc, path, index) => ({ ...acc, [index]: path }), {});
+        console.log(`Total de vídeos encontrados: ${Object.keys(videoList).length}`);
     } catch (err) {
         console.error('Erro ao ler os vídeos:', err);
     }
@@ -107,24 +106,24 @@ function initializeVideoList() {
 
 // Função para selecionar um vídeo aleatório e um timestamp
 async function selectRandomVideo() {
-    if (videoList.length === 0) {
+    if (Object.keys(videoList).length === 0) {
         console.warn('Nenhum vídeo disponível na lista.');
         return null;
     }
 
-    const randomIndex = Math.floor(Math.random() * videoList.length);
-    const selectedVideo = videoList[randomIndex];
+    const randomIndex = Math.floor(Math.random() * Object.keys(videoList).length);
+    const selectedVideoPath = videoList[randomIndex];
 
     try {
-        const duration = await getVideoDuration(selectedVideo);
+        const duration = await getVideoDuration(selectedVideoPath);
         if (duration <= TIME_PER_CLIP + 1) {
-            return { path: selectedVideo, timestamp: 0 };
+            return { index: randomIndex, timestamp: 0 };
         }
         const maxTimestamp = duration - TIME_PER_CLIP + 1;
         const randomTimestamp = Math.floor(Math.random() * maxTimestamp);
-        return { path: selectedVideo, timestamp: randomTimestamp };
+        return { index: randomIndex, timestamp: randomTimestamp };
     } catch (err) {
-        console.error(`Erro ao obter duração do vídeo ${selectedVideo}:`, err);
+        console.error(`Erro ao obter duração do vídeo ${selectedVideoPath}:`, err);
         return null;
     }
 }
@@ -136,10 +135,10 @@ async function playbackLoopFunction() {
     const videoInfo = await selectRandomVideo();
     if (videoInfo) {
         io.emit('video-stream', {
-            url: videoInfo.path,  // Use the absolute path directly
+            index: videoInfo.index,  // Use the index instead of the path
             timestamp: videoInfo.timestamp
         });
-        console.log(`Enviado vídeo: ${videoInfo.path} com timestamp: ${videoInfo.timestamp}`);
+        console.log(`Enviado vídeo: ${videoList[videoInfo.index]} com timestamp: ${videoInfo.timestamp}`);
     }
     // Configurar o próximo envio após TIME_PER_CLIP segundos se GoDMode estiver ativado
     if (GoDMode) {
@@ -184,10 +183,10 @@ app.get('/changevideo', async (req, res) => {
         const videoInfo = await selectRandomVideo();
         if (videoInfo) {
             io.emit('video-stream', {
-                url: videoInfo.path,
+                index: videoInfo.index,  // Use the index instead of the path
                 timestamp: videoInfo.timestamp
             });
-            console.log(`Enviado vídeo: ${videoInfo.path} com timestamp: ${videoInfo.timestamp}`);
+            console.log(`Enviado vídeo: ${videoList[videoInfo.index]} com timestamp: ${videoInfo.timestamp}`);
             res.send({ status: 'video changed' });
         } else {
             res.status(500).send({ status: 'error', message: 'No videos available' });
@@ -197,58 +196,77 @@ app.get('/changevideo', async (req, res) => {
     }
 });
 
-// Servir os arquivos de vídeo estáticos com CORS
-app.get('/video', (req, res) => {
+// Rota para servir vídeos com streaming
+app.get('/video', async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
 
-    // Decodificar e normalizar o caminho do vídeo
-    const videoPath = decodeURIComponent(req.query.path);
-    const normalizedPath = path.normalize(videoPath);
+    try {
+        const index = req.query.index;
+        if (index === undefined || !Object.keys(videoList).includes(index)) {
+            console.log(`Índice inválido: ${index}`);
+            return res.status(404).send('Índice inválido');
+        }
 
-    // Validar que o caminho existe em nossas configurações
-    const { paths } = loadVideoPaths();
-    const isValidPath = paths.some(basePath => {
-        const normalizedBasePath = path.normalize(basePath);
-        return normalizedPath.startsWith(normalizedBasePath);
-    });
+        const videoPath = videoList[index];
+        const normalizedPath = path.normalize(videoPath);
 
-    if (!isValidPath) {
-        console.log('Access denied for path:', normalizedPath);
-        return res.status(403).send('Access denied');
-    }
+        // Carregar configurações de caminhos
+        const { paths } = loadVideoPaths();
 
-    // Verificar se o arquivo existe
-    if (!fs.existsSync(normalizedPath)) {
-        console.log('File not found:', normalizedPath);
-        return res.status(404).send('File not found');
-    }
+        // Verificar se o caminho está nas pastas permitidas
+        const isValidPath = paths.some(basePath => {
+            const normalizedBase = path.normalize(basePath);
+            return normalizedPath.startsWith(normalizedBase);
+        });
 
-    // Stream do vídeo
-    const stat = fs.statSync(normalizedPath);
-    const fileSize = stat.size;
-    const range = req.headers.range;
+        if (!isValidPath) {
+            console.log(`Acesso negado ao caminho: ${normalizedPath}`);
+            return res.status(403).send('Acesso negado');
+        }
 
-    if (range) {
-        const parts = range.replace(/bytes=/, "").split("-");
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-        const chunksize = (end - start) + 1;
-        const file = fs.createReadStream(normalizedPath, { start, end });
-        const head = {
-            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-            'Accept-Ranges': 'bytes',
-            'Content-Length': chunksize,
-            'Content-Type': 'video/mp4',
-        };
-        res.writeHead(206, head);
-        file.pipe(res);
-    } else {
-        const head = {
-            'Content-Length': fileSize,
-            'Content-Type': 'video/mp4',
-        };
-        res.writeHead(200, head);
-        fs.createReadStream(normalizedPath).pipe(res);
+        // Verificar se o arquivo existe
+        if (!fs.existsSync(normalizedPath)) {
+            console.log(`Arquivo não encontrado: ${normalizedPath}`);
+            return res.status(404).send('Arquivo não encontrado');
+        }
+
+        // Configurar cabeçalho Content-Type correto
+        const ext = path.extname(normalizedPath).toLowerCase();
+        const contentType = ext === '.mp4' ? 'video/mp4' :
+                           ext === '.m4a' ? 'video/mp4' : // M4A geralmente é aceito como mp4
+                           'video/*'; // Fallback genérico
+
+        // Streaming do vídeo
+        const stat = fs.statSync(normalizedPath);
+        const fileSize = stat.size;
+        const range = req.headers.range;
+
+        if (range) {
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunksize = (end - start) + 1;
+
+            const file = fs.createReadStream(normalizedPath, { start, end });
+            const head = {
+                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunksize,
+                'Content-Type': contentType,
+            };
+            res.writeHead(206, head);
+            file.pipe(res);
+        } else {
+            const head = {
+                'Content-Length': fileSize,
+                'Content-Type': contentType,
+            };
+            res.writeHead(200, head);
+            fs.createReadStream(normalizedPath).pipe(res);
+        }
+    } catch (error) {
+        console.error(`Erro ao servir vídeo no índice ${req.query.index}:`, error);
+        res.status(500).send('Erro ao processar o vídeo');
     }
 });
 
