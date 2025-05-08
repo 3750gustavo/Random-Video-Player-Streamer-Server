@@ -60,18 +60,18 @@ Imagine a Web APP that plays random videos at random starting points from your p
      }
      ```
 5. Open the `index.html` inside the Frontend directory in the text editor of your choice and change the `ipAddress` constant to the IP address of your machine running the server so that it end up looking like this: `const ipAddress = "http://192.168.0.120:3000";` replacing the "192.168.0.120" with your own IP address.
-6. To run the server you can just go back to the Backend directory inside the terminal and run `node server.js` or at the root of the project run `node Backend/server.js`
+6. To run the server you can just go back to the Backend directory inside the terminal and run `node server.js` or at the root of the project run `node backend/server.js`
 
 ### Usage
 
-1. Run the server using `node server.js` while inside the Backend directory or `node Backend/server.js` at the root of the project.
+1. Run the server using `node server.js` while inside the Backend directory or `node backend/server.js` at the root of the project.
 2. By now the server should be running, and you should be able to access the frontend by going to `http://your-ip-address:3000` in your browser.
 
 ## GoD Mode vs Normal Mode
 
 The server has two modes: GoD Mode and Normal Mode.
 
-- **GoD Mode:** In this mode, the server will automatically play a new video every 10 seconds. This mode is enabled by default when the server starts, its called god mode because the server has god powers over the client, it can play any video at any time without the client having anything to say about it.
+- **GoD Mode:** In this mode, the server will automatically play a new video every 10 seconds. This mode is enabled by default when the server starts, it's called god mode because the server has god powers over the client, it can play any video at any time without the client having anything to say about it.
 - **Normal Mode:** In this mode, the server will only play a new video when the client requests it. The videos are still just as random as in GoD Mode, but the client has more control over when the videos are played.
 
 ## Technology Stack
